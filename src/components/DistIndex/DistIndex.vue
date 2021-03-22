@@ -1,7 +1,7 @@
 <!--
  * @Author: weicong
  * @Date: 2021-03-10 17:39:06
- * @LastEditTime: 2021-03-22 14:40:40
+ * @LastEditTime: 2021-03-22 21:35:09
  * @LastEditors: weicong
  * @Description: 
 -->
@@ -28,8 +28,11 @@
           </div>
         </div>
       </FormItem>
-      <FormItem prop="inline" v-for="(i, index) in formlist" :key="index">
-        <Row>
+      <FormItem :prop="i.key" v-for="(i, index) in formlist" :key="index">
+        <Row
+          @mouseenter.native="mouseenter(i)"
+          @mouseleave.native="mouseleave(i)"
+        >
           <Col span="8">
             <Input type="text" v-model="i.key" placeholder="输入键名">
               <span slot="prepend">KEY</span>
@@ -50,6 +53,11 @@
             <Input type="text" v-model="i.length" placeholder="输入长度">
               <span slot="prepend">LENGTH</span>
             </Input>
+            <Icon
+              type="md-close-circle"
+              :style="{ opacity: i.hover ? 1 : 0 }"
+              @click="removeHandler(i)"
+            />
           </Col>
         </Row>
       </FormItem>
@@ -64,6 +72,8 @@
     </Form>
     <div class="result">
       <editor :value.sync="editorCode" :options="editorOptions"></editor>
+      <div class="copy" @click="copyHandler">复制</div>
+      <Spin v-if="loading" fix></Spin>
     </div>
   </div>
 </template>
@@ -71,12 +81,12 @@
 <script>
 import Editor from "./Editor";
 import Mock from "mockjs";
+import Worker from "./field.worker.js";
 export default {
   name: "DistIndex",
   components: { Editor },
   data() {
     return {
-      formInline: {},
       editorCode: "",
       editorOptions: {
         fontSize: 14,
@@ -139,9 +149,31 @@ export default {
       hasChildren: true,
       reslength: 20,
       resdeep: 1,
+      loading: false,
     };
   },
   methods: {
+    removeHandler(i) {
+      if (i.hover) {
+        const index = this.formlist.indexOf(i);
+        this.formlist.splice(index, 1);
+        this.$Message.success("删除成功！");
+      }
+    },
+    async copyHandler() {
+      try {
+        await navigator.clipboard.writeText(this.editorCode);
+        this.$Message.success("复制成功！");
+      } catch {
+        this.$Message.success("复制失败！");
+      }
+    },
+    mouseenter(i) {
+      this.$set(i, "hover", true);
+    },
+    mouseleave(i) {
+      this.$set(i, "hover", false);
+    },
     handleAdd() {
       this.formlist.push({
         key: "name",
@@ -150,39 +182,63 @@ export default {
       });
     },
     handleSubmit() {
-      const rules = this.generateRule(this.reslength, this.resdeep - 1);
-      const data = Mock.mock(rules);
-      const res = {
-        status: 200,
-        message: "success",
-        data: data,
+      this.loading = true;
+      const list = this.formlist.reduce((prev, cur) => {
+        const index = prev.findIndex((i) => {
+          return i.key === cur.key;
+        });
+        if (!~index) {
+          prev.push(cur);
+        }
+        return prev;
+      }, []);
+      const worker = new Worker();
+      worker.postMessage({
+        list: list,
+        reslength: this.reslength,
+        resdeep: this.resdeep,
+        hasID: this.hasID,
+        hasChildren: this.hasChildren,
+      });
+      worker.onmessage = (e) => {
+        const rules = e.data.res;
+        const data = Mock.mock(rules);
+        const res = {
+          status: 200,
+          message: "success",
+          data: data,
+        };
+        this.editorCode = JSON.stringify(res, null, 2);
+        this.loading = false;
       };
-      this.editorCode = JSON.stringify(res, null, 2);
     },
-    generateRule(length, deep) {
+    generateRule(list, length, deep) {
       const res = [];
+      let item = {};
       for (let i = 0; i < length; i++) {
-        const item = {};
-        this.formlist.map((i) => {
+        list.map((i) => {
           if (this.hasID) {
             item["id"] = Mock.Random.guid();
           }
           item[i.key] = this.getType(i.type, Number(i.length));
-          if (this.hasChildren && deep > 0) {
-            item["children"] = this.generateRule(
-              Mock.Random.integer(0, length),
-              deep - 1
-            );
-          }
         });
+        if (this.hasChildren && deep > 0) {
+          item["children"] = this.generateRule(
+            list,
+            Mock.Random.integer(0, length),
+            deep - 1
+          );
+        }
         res.push(item);
       }
+      item = null;
       return res;
     },
     getType(type, len) {
       let res = "";
       switch (type) {
         case "string":
+        default:
           res = Mock.Random.ctitle(len);
           break;
         case "ystring":
@@ -250,10 +306,21 @@ export default {
     }
   }
   .result {
+    position: relative;
     flex: 1;
     margin: 0 1rem 1rem 1rem;
     width: 50%;
     border: 1px solid #dcdee2;
+    .copy {
+      display: inline-block;
+      position: absolute;
+      top: 0;
+      right: 0;
+      background: #dcdee2;
+      padding: 0.2rem 1.2rem;
+      color: #000;
+      cursor: pointer;
+    }
   }
 }
 
@@ -264,10 +331,17 @@ export default {
 /deep/ .ivu-col {
   padding: 0 1rem;
   display: flex;
+  align-items: center;
+  & > i {
+    font-size: 1.5rem;
+    color: #ff0000;
+    margin-left: 0.5rem;
+    cursor: pointer;
+  }
   & > span {
     display: flex;
     align-items: center;
-    padding: 4px 7px;
+    padding: 8px 7px;
     background: #f8f8f9;
     border-radius: 4px;
     font-weight: 400;

@@ -1,7 +1,7 @@
 /*
  * @Author: weicong
  * @Date: 2021-03-02 16:42:52
- * @LastEditTime: 2021-03-22 16:32:44
+ * @LastEditTime: 2021-03-22 21:36:08
  * @LastEditors: weicong
  * @Description:
  */
@@ -48,5 +48,15 @@ module.exports = {
       .test(/\.(png|jpe?g|gif|webp|svg)(\?.*)?$/)
       .exclude.add(resolve("src/svg"))
       .end();
+    config.module
+      .rule("worker")
+      .test(/\.worker\.js$/)
+      .use("worker-loader")
+      .loader("worker-loader")
+      .options({
+        inline: "fallback",
+      })
+      .end();
+    config.module.rule("js").exclude.add(/\.worker\.js$/);
   },
 };
