@@ -1,7 +1,7 @@
 <!--
  * @Author: weicong
  * @Date: 2021-03-10 17:39:06
- * @LastEditTime: 2021-03-22 21:50:12
+ * @LastEditTime: 2021-03-22 22:05:52
  * @LastEditors: weicong
  * @Description: 
 -->
@@ -80,7 +80,6 @@
 
 <script>
 import Editor from "./Editor";
-import Mock from "mockjs";
 import Worker from "./field.worker.js";
 export default {
   name: "DistIndex",
@@ -196,13 +195,12 @@ export default {
       worker.postMessage({
         list: list,
         reslength: this.reslength,
-        resdeep: this.resdeep,
+        resdeep: this.resdeep - 1,
         hasID: this.hasID,
         hasChildren: this.hasChildren,
       });
       worker.onmessage = (e) => {
-        const rules = e.data.res;
-        const data = Mock.mock(rules);
+        const data = e.data.data;
         const res = {
           status: 200,
           message: "success",

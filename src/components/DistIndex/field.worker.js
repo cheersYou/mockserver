@@ -1,18 +1,17 @@
 /*
  * @Author: weicong
  * @Date: 2021-03-22 21:20:48
- * @LastEditTime: 2021-03-22 21:29:31
+ * @LastEditTime: 2021-03-22 22:07:39
  * @LastEditors: weicong
  * @Description:
  */
 import Mock from "mockjs";
 self.onmessage = (e) => {
   const { list, reslength, resdeep, hasID, hasChildren } = e.data;
-  const res = generateRule(list, reslength, resdeep);
   function generateRule(list, length, deep) {
     const res = [];
-    let item = {};
     for (let i = 0; i < length; i++) {
+      let item = {};
       list.map((i) => {
         if (hasID) {
           item["id"] = Mock.Random.guid();
@@ -27,8 +26,8 @@ self.onmessage = (e) => {
         );
       }
       res.push(item);
+      item = null;
     }
-    item = null;
     return res;
   }
   function getType(type, len) {
@@ -71,8 +70,10 @@ self.onmessage = (e) => {
     }
     return res;
   }
+  const rules = generateRule(list, reslength, resdeep);
+  const data = Mock.mock(rules);
   self.postMessage({
-    res: res,
+    data: data,
   });
   self.close();
 };
