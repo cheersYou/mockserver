@@ -1,7 +1,7 @@
 <!--
  * @Author: weicong
  * @Date: 2021-03-10 17:39:06
- * @LastEditTime: 2021-03-22 22:05:52
+ * @LastEditTime: 2021-03-23 11:15:31
  * @LastEditors: weicong
  * @Description: 
 -->
@@ -75,15 +75,34 @@
       <div class="copy" @click="copyHandler">复制</div>
       <Spin v-if="loading" fix></Spin>
     </div>
+    <div class="default-container">
+      <div class="default-container-title">
+        <span>默认自定义MOCK列表</span>
+        <Input v-model="searchVal" size="small" style="width:40%" search />
+      </div>
+      <div class="default-list">
+        <Button
+          v-for="(i, index) in defaultlist"
+          type="dashed"
+          :key="index"
+          style="margin:0 5px"
+          @click="handleDefault(i.type)"
+        >
+          {{ i.name }}
+        </Button>
+      </div>
+    </div>
   </div>
 </template>
 
 <script>
 import Editor from "./Editor";
 import Worker from "./field.worker.js";
+import mixins from "./mixins";
 export default {
   name: "DistIndex",
   components: { Editor },
+  mixins: [mixins],
   data() {
     return {
       editorCode: "",
@@ -96,6 +115,16 @@ export default {
           key: "name",
           type: "string",
           length: 5,
+        },
+      ],
+      defaultlist: [
+        {
+          name: "GEOJSON",
+          type: "geojson",
+        },
+        {
+          name: "三维专题树",
+          type: "topic3d",
         },
       ],
       typelist: [
@@ -149,9 +178,37 @@ export default {
       reslength: 20,
       resdeep: 1,
       loading: false,
+      searchVal: "",
+      clonedefaultlist: [],
     };
   },
+  watch: {
+    searchVal(newVal) {
+      if (newVal) {
+        this.defaultlist = this.clonedefaultlist.filter((i) => {
+          return ~i.name.toLowerCase().indexOf(newVal.toLowerCase());
+        });
+      } else {
+        this.defaultlist = JSON.parse(JSON.stringify(this.clonedefaultlist));
+      }
+    },
+  },
+  mounted() {
+    this.clonedefaultlist = JSON.parse(JSON.stringify(this.defaultlist));
+  },
   methods: {
+    handleDefault(type) {
+      let res = null;
+      switch (type) {
+        case "geojson":
+          res = this.getGeoJson();
+          break;
+        case "topic3d":
+          res = this.get3DTopicTree();
+          break;
+      }
+      this.editorCode = JSON.stringify(res, null, 2);
+    },
     removeHandler(i) {
       if (i.hover) {
         const index = this.formlist.indexOf(i);
@@ -164,7 +221,7 @@ export default {
         await navigator.clipboard.writeText(this.editorCode);
         this.$Message.success("复制成功！");
       } catch {
-        this.$Message.success("复制失败！");
+        this.$Message.error("复制失败！");
       }
     },
     mouseenter(i) {
@@ -218,9 +275,6 @@ export default {
 .container {
   width: 100%;
   height: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
   .form {
     padding: 1rem;
     .option-field {
@@ -243,10 +297,10 @@ export default {
   }
   .result {
     position: relative;
-    flex: 1;
-    margin: 0 1rem 1rem 1rem;
     width: 50%;
+    height: 60%;
     border: 1px solid #dcdee2;
+    margin: auto;
     .copy {
       display: inline-block;
       position: absolute;
@@ -256,6 +310,39 @@ export default {
       padding: 0.2rem 1.2rem;
       color: #000;
       cursor: pointer;
+    }
+  }
+  .default-container {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 20%;
+    min-height: 20%;
+    padding: 1rem;
+    background: #dcdee2;
+    border-radius: 0.2rem;
+    &-title {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      text-align: left;
+      padding-left: 0.5rem;
+      line-height: 1;
+      font-size: 1rem;
+      font-weight: 1000;
+      margin-bottom: 1rem;
+      & > span {
+        margin-left: -1.5rem;
+      }
+    }
+    &-title::before {
+      content: "";
+      width: 3px;
+      height: 1rem;
+      background: #515a6e;
+    }
+    .default-list {
+      display: flex;
     }
   }
 }
